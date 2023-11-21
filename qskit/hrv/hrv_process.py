@@ -140,8 +140,9 @@ def hrv_process(
             # cache final result
             hrv_neurokit_final = hrv_neurokit
             if cache_dir is not None:
-                hrv_cache_file = os.path.join(cache_dir, f'{hrv_cache_tag}-{user}-{dts.strftime("%Y_%m_%d-%H_%M_%S")}.csv')
-                hrv_neurokit_final.to_csv(hrv_cache_file, header = True, index = False)
+                if len(hrv_neurokit_final) > 0:
+                    hrv_cache_file = os.path.join(cache_dir, f'{hrv_cache_tag}-{user}-{dts.strftime("%Y_%m_%d-%H_%M_%S")}.csv')
+                    hrv_neurokit_final.to_csv(hrv_cache_file, header = True, index = False)
                 # remove temporary cache
                 os.remove(hrv_progress_cache_file)
             return hrv_neurokit_final

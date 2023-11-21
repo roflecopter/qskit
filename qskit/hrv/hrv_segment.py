@@ -66,36 +66,36 @@ def hrv_segment(rpeaks, sf, hf_ex = [9/60,1.5], window = 60, metrics = ['time','
     # In each window the power spectrum was estimated by the FFT technique and integrated over frequency bands defined as Low Frequency (LF: 0.05- 0.15 Hz) and High Frequency (0.20-1.5 Hz)(Figure 1, panel c).
     # hf_ex = [9/60,1.5]
 
-    hrv = {'hr': len(rpeaks) * 60 / window}
-    hrv['meannn'] = np.mean(rr_up)
+    hrv_all = {'hr': len(rpeaks) * 60 / window}
+    hrv_all['meannn'] = np.mean(rr_up)
     if 'time' in metrics:
       hrv_time = nk.hrv_time(np.cumsum(rr_detrended_up), sf_interp)
       hrv_time.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)
-      hrv.update(hrv_time[hrv_time_cols].iloc[0].to_dict())
+      hrv_all.update(hrv_time[hrv_time_cols].iloc[0].to_dict())
     if 'freq' in metrics:
         hrv_freq = nk.hrv_frequency(np.cumsum(rr_detrended_up), sampling_rate=sf_interp, psd_method='welch', interpolation_rate = 100, normalize = False)
         hrv_freq.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)
-        hrv.update(hrv_freq[hrv_freq_cols].iloc[0].to_dict())
+        hrv_all.update(hrv_freq[hrv_freq_cols].iloc[0].to_dict())
     if 'nl' in metrics:
         hrv_nl = nk.hrv_nonlinear(np.cumsum(rr_detrended_up), sampling_rate=sf_interp)
         hrv_nl.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)
-        hrv.update(hrv_nl[hrv_nl_cols].iloc[0].to_dict())
+        hrv_all.update(hrv_nl[hrv_nl_cols].iloc[0].to_dict())
     if 'pwr' in metrics:
         # power in extended high frequency band
         pwr_hf_ex = nk.signal_power(rr_detrended_up_interp, frequency_band=hf_ex,sampling_rate=sf_interp,show=False,min_frequency=0,method="welch",max_frequency=max(hf_ex),order_criteria=None,normalize=False)
         psd = nk.signal_psd(rr_detrended_up_interp,sampling_rate=sf_interp,show=False,min_frequency=0,method="welch",max_frequency=max(hf_ex),order_criteria=None,normalize=False)
         hf_ex_psd = psd[psd['Frequency'].between(min(hf_ex), max(hf_ex))]
         # peaks frequency & power in extended high frequency band, which is related to respiration
-        hrv['ex_hf_peak_freq'] = hf_ex_psd['Frequency'].iloc[np.argmax(hf_ex_psd['Power'])]
-        hrv['resp'] = 1/hrv['ex_hf_peak_freq']
-        hrv['ex_hf_peak_power'] = hf_ex_psd['Frequency'].iloc[np.argmax(hf_ex_psd['Power'])]
-        hrv['ex_hf_power'] = pwr_hf_ex.iloc[0].iloc[0]
+        hrv_all['ex_hf_peak_freq'] = hf_ex_psd['Frequency'].iloc[np.argmax(hf_ex_psd['Power'])]
+        hrv_all['resp'] = 1/hrv_all['ex_hf_peak_freq']
+        hrv_all['ex_hf_peak_power'] = hf_ex_psd['Frequency'].iloc[np.argmax(hf_ex_psd['Power'])]
+        hrv_all['ex_hf_power'] = pwr_hf_ex.iloc[0].iloc[0]
     if ('ans' in metrics) and (window >= 30):
-        hrv['bsi'] = bsi(rr_detrended_up, sf_interp)
-        hrv_ans = ans(hrv['hr'], hrv['meannn'], hrv['rmssd'], hrv['sd1'], hrv['sd2'], hrv['bsi'])
-        hrv.update(hrv_ans)
+        hrv_all['bsi'] = bsi(rr_detrended_up, sf_interp)
+        hrv_ans = ans(hrv_all['hr'], hrv_all['meannn'], hrv_all['rmssd'], hrv_all['sd1'], hrv_all['sd2'], hrv_all['bsi'])
+        hrv_all.update(hrv_ans)
     elif 'bsi' in metrics:
-        hrv['bsi'] = bsi(rr_detrended_up, sf_interp)
+        hrv_all['bsi'] = bsi(rr_detrended_up, sf_interp)
     if ('r_rr' in metrics) and (window >= 60):
-        hrv['r_rr'] = rRR(rr_detrended_up)
-    return {f'{key}_{window}s': value for key, value in hrv.items()}
+        hrv_all['r_rr'] = rRR(rr_detrended_up)
+    return {f'{key}_{window}s': value for key, value in hrv_all.items()}
