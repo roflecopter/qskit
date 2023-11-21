@@ -73,14 +73,21 @@ def hrv_process(
                 segment_clean = signal_clean[ss:se]
                 try:
                     # https://www.samproell.io/posts/signal/ecg-library-comparison/
-                    rpeaks = nk.ecg_findpeaks(segment_clean, sampling_rate=sf, method='neurokit')[f'{type}_R_Peaks']
-                except:
-                    rpeaks = None
-                peaks_n = len(rpeaks)
+                    rpeaks_res = nk.ecg_findpeaks(segment_clean, sampling_rate=sf, method='neurokit')
+                    if rpeaks_res is not None:
+                        rpeaks = rpeaks_res[f'{type}_R_Peaks']
+                        peaks_n = len(rpeaks)
+                    else:
+                        logger.info(f'no peaks found: {rpeaks_res}')
+                        peaks_n = 0                        
+                except Exception as error:
+                    # handling neurokit no peaks found issue https://github.com/neuropsychology/NeuroKit/issues/580
+                    logger.warning(error)
+                    peaks_n = 0
                 if peaks_n > 2:
                     r1, r2, r3_v = peaks_sqi(rpeaks, window, min_hr, max_hr)
-                    r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
                     if not r1:
+                        r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
                         ss_fix_peaks_st = now()
                         # 1st round of R-peaks correction: Kubios method
                         info, rpeaks_corrected = nk.signal_fixpeaks(rpeaks, sampling_rate=sf, method = 'Kubios', iterative=True, show=False)

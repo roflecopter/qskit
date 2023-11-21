@@ -52,7 +52,6 @@ hrv_good = hrv[hrv['q']]
 print(f'ECG good segments: {round(100*len(hrv_good)/len(hrv),1)}%')
 plt.plot(hrv_good['dt'],hrv_good['rmssd_60s'])
 
-
 # Shimmer3 ECG 512Hz real data
 ecg_data = pd.read_csv(os.path.join('qskit','data','ecg','2023_10_29-08_43_47_ecg_calibrated.csv'))
 ecg_signal = ecg_data['EXG_ADS1292R_1_CH2_24BIT']
