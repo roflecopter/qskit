@@ -69,9 +69,9 @@ def hrv_segment(rpeaks, sf, hf_ex = [9/60,1.5], window = 60, metrics = ['time','
     hrv_all = {'hr': len(rpeaks) * 60 / window}
     hrv_all['meannn'] = np.mean(rr_up)
     if 'time' in metrics:
-      hrv_time = nk.hrv_time(np.cumsum(rr_detrended_up), sf_interp)
-      hrv_time.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)
-      hrv_all.update(hrv_time[hrv_time_cols].iloc[0].to_dict())
+        hrv_time = nk.hrv_time(np.cumsum(rr_detrended_up), sf_interp)
+        hrv_time.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)
+        hrv_all.update(hrv_time[hrv_time_cols].iloc[0].to_dict())
     if 'freq' in metrics:
         hrv_freq = nk.hrv_frequency(np.cumsum(rr_detrended_up), sampling_rate=sf_interp, psd_method='welch', interpolation_rate = 100, normalize = False)
         hrv_freq.rename(columns=lambda x: x.replace('HRV_', '').lower(), inplace=True)

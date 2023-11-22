@@ -18,7 +18,7 @@ logger.setLevel(logging.INFO)
 def hrv_process(
         signal, 
         sf, 
-        type = 'ECG', 
+        type = 'ecg', 
         window = 60, 
         slide = 30, 
         min_hr = 30, 
@@ -31,18 +31,33 @@ def hrv_process(
         verbose = False,
         debug = False
 ):
+    accepted = ['ecg','rpeaks','rr']
+    if type not in accepted :
+        logger.warning(f'wrong type selected, must be one of {accepted}')
+        return None
     if dts is None: dts = datetime.datetime.now()
     hrv_cache_tag = f'hrv_p{window}_s{slide}'; 
     # sliding window in samples
     s_slide = slide * sf
+
+    # if input is rpeaks or rr, then creaty empty signal
+    if type == 'rpeaks':
+        rpeaks_all = signal
+        signal = np.arange(0, rpeaks_all[-1] + 1)
+    elif type == 'rr':
+        rpeaks_all = np.cumsum(np.append(0, signal))
+        signal = np.arange(0, rpeaks_all[-1] + 1)
     signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf);
-    
+
     # define at each progress percentage to append results into cache file and print
     progress_percent_step = 5; progress_step = s_slide*round(signal_end/((100/progress_percent_step)*s_slide))
     if progress_step == 0: progress_step = window * sf * 60
 
-    # clean signal    
-    signal_clean = nk.ecg_clean(signal, sf, method = 'neurokit')
+    # clean signal
+    if type == 'ecg':
+        signal_clean = nk.ecg_clean(signal, sf, method = 'neurokit')
+    elif type in ['rpeaks','rr']:
+        signal_clean = signal
     hrv_neurokit = None
     
     # load cache
@@ -58,6 +73,7 @@ def hrv_process(
 
     slided = 0; slided_past = 0
     ss_started = now(); ss_first = now()
+
     if signal_start < signal_end:
         for i in range(signal_start, signal_end):
             ss = i; se = ss + window * sf - 1
@@ -72,14 +88,18 @@ def hrv_process(
                     ss_started = now(); slided_past = slided
                 segment_clean = signal_clean[ss:se]
                 try:
-                    # https://www.samproell.io/posts/signal/ecg-library-comparison/
-                    rpeaks_res = nk.ecg_findpeaks(segment_clean, sampling_rate=sf, method='neurokit')
-                    if rpeaks_res is not None:
-                        rpeaks = rpeaks_res[f'{type}_R_Peaks']
+                    if type == 'ecg':
+                        # https://www.samproell.io/posts/signal/ecg-library-comparison/
+                        rpeaks_res = nk.ecg_findpeaks(segment_clean, sampling_rate=sf, method='neurokit')
+                        if rpeaks_res is not None:
+                            rpeaks = rpeaks_res[f'{type}_R_Peaks']
+                            peaks_n = len(rpeaks)
+                        else:
+                            logger.info(f'no peaks found: {rpeaks_res}')
+                            peaks_n = 0
+                    elif type in ['rpeaks','rr']:
+                        rpeaks = rpeaks_all[(rpeaks_all >= ss) & (rpeaks_all < se)]
                         peaks_n = len(rpeaks)
-                    else:
-                        logger.info(f'no peaks found: {rpeaks_res}')
-                        peaks_n = 0                        
                 except Exception as error:
                     # handling neurokit no peaks found issue https://github.com/neuropsychology/NeuroKit/issues/580
                     logger.warning(error)
@@ -87,7 +107,10 @@ def hrv_process(
                 if peaks_n > 2:
                     r1, r2, r3_v = peaks_sqi(rpeaks, window, min_hr, max_hr)
                     if not r1:
-                        r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
+                        if type == 'ecg':
+                            r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
+                        elif type in ['rpeaks','rr']:
+                            r4_cor = np.nan
                         ss_fix_peaks_st = now()
                         # 1st round of R-peaks correction: Kubios method
                         info, rpeaks_corrected = nk.signal_fixpeaks(rpeaks, sampling_rate=sf, method = 'Kubios', iterative=True, show=False)
