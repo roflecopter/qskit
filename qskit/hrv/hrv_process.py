@@ -18,7 +18,7 @@ logger.setLevel(logging.INFO)
 def hrv_process(
         signal, 
         sf, 
-        type = 'ecg', 
+        type = 'ECG', 
         window = 60, 
         slide = 30, 
         min_hr = 30, 
@@ -31,7 +31,7 @@ def hrv_process(
         verbose = False,
         debug = False
 ):
-    accepted = ['ecg','rpeaks','rr']
+    accepted = ['ECG','PPG','RPeaks','RR']
     if type not in accepted :
         logger.warning(f'wrong type selected, must be one of {accepted}')
         return None
@@ -41,10 +41,10 @@ def hrv_process(
     s_slide = slide * sf
 
     # if input is rpeaks or rr, then creaty empty signal
-    if type == 'rpeaks':
+    if type == 'RPeaks':
         rpeaks_all = signal
         signal = np.arange(0, rpeaks_all[-1] + 1)
-    elif type == 'rr':
+    elif type == 'RR':
         rpeaks_all = np.cumsum(np.append(0, signal))
         signal = np.arange(0, rpeaks_all[-1] + 1)
     signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf);
@@ -54,9 +54,11 @@ def hrv_process(
     if progress_step == 0: progress_step = window * sf * 60
 
     # clean signal
-    if type == 'ecg':
+    if type == 'ECG':
         signal_clean = nk.ecg_clean(signal, sf, method = 'neurokit')
-    elif type in ['rpeaks','rr']:
+    elif type == 'PPG':
+        signal_clean = nk.ppg_clean(signal, sf, method = 'elgendi')
+    elif type in ['RPeaks','RR']:
         signal_clean = signal
     hrv_neurokit = None
     
@@ -88,7 +90,7 @@ def hrv_process(
                     ss_started = now(); slided_past = slided
                 segment_clean = signal_clean[ss:se]
                 try:
-                    if type == 'ecg':
+                    if type == 'ECG':
                         # https://www.samproell.io/posts/signal/ecg-library-comparison/
                         rpeaks_res = nk.ecg_findpeaks(segment_clean, sampling_rate=sf, method='neurokit')
                         if rpeaks_res is not None:
@@ -97,7 +99,15 @@ def hrv_process(
                         else:
                             logger.info(f'no peaks found: {rpeaks_res}')
                             peaks_n = 0
-                    elif type in ['rpeaks','rr']:
+                    elif type == 'PPG':
+                        rpeaks_res = nk.ppg_findpeaks(segment_clean, sampling_rate=sf, method='elgendi')
+                        if rpeaks_res is not None:
+                            rpeaks = rpeaks_res[f'{type}_R_Peaks']
+                            peaks_n = len(rpeaks)
+                        else:
+                            logger.info(f'no peaks found: {rpeaks_res}')
+                            peaks_n = 0
+                    elif type in ['RPeaks','RR']:
                         rpeaks = rpeaks_all[(rpeaks_all >= ss) & (rpeaks_all < se)]
                         peaks_n = len(rpeaks)
                 except Exception as error:
@@ -107,9 +117,9 @@ def hrv_process(
                 if peaks_n > 2:
                     r1, r2, r3_v = peaks_sqi(rpeaks, window, min_hr, max_hr)
                     if not r1:
-                        if type == 'ecg':
+                        if type == 'ECG':
                             r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
-                        elif type in ['rpeaks','rr']:
+                        elif type in ['RPeaks','RR']:
                             r4_cor = np.nan
                         ss_fix_peaks_st = now()
                         # 1st round of R-peaks correction: Kubios method
