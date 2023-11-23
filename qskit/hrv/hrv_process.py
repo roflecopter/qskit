@@ -2,13 +2,15 @@ import numpy as np
 import pandas as pd
 import math
 import os
-import sys
 import datetime
 import logging
 import neurokit2 as nk
+from vital_sqi.common.rpeak_detection import PeakDetector
+from vital_sqi.preprocess.preprocess_signal import smooth_signal,taper_signal
+from vital_sqi.common.band_filter import BandpassFilter
 from hrvanalysis import remove_ectopic_beats
 from ..misc import now, spd
-from ..signal import sc_interp1d_nan
+from ..signal import sc_interp1d_nan, butter_bandpass_filter
 from .sqi import peaks_sqi, beats_cor_sqi
 from .hrv_segment import hrv_segment
 
@@ -57,7 +59,10 @@ def hrv_process(
     if type == 'ECG':
         signal_clean = nk.ecg_clean(signal, sf, method = 'neurokit')
     elif type == 'PPG':
-        signal_clean = nk.ppg_clean(signal, sf, method = 'elgendi')
+        # https://www.mdpi.com/2073-8994/14/6/1139
+        # The ECG and the PPG bandpass filters were set to 
+        # 0.5 to 35 Hz [62,63] and 0.4 to 4 Hz, respectively
+        signal_clean = butter_bandpass_filter(signal, .4, 4, sf, 4)
     elif type in ['RPeaks','RR']:
         signal_clean = signal
     hrv_neurokit = None
@@ -100,9 +105,10 @@ def hrv_process(
                             logger.info(f'no peaks found: {rpeaks_res}')
                             peaks_n = 0
                     elif type == 'PPG':
-                        rpeaks_res = nk.ppg_findpeaks(segment_clean, sampling_rate=sf, method='elgendi')
-                        if rpeaks_res is not None:
-                            rpeaks = rpeaks_res[f'{type}_R_Peaks']
+                        detector = PeakDetector(wave_type='ppg',fs=sf)
+                        rpeaks, trough_list = detector.ppg_detector(segment_clean, detector_type=1)
+                        if rpeaks is not None:
+                            rpeaks = np.array(rpeaks)
                             peaks_n = len(rpeaks)
                         else:
                             logger.info(f'no peaks found: {rpeaks_res}')
@@ -117,11 +123,10 @@ def hrv_process(
                 if peaks_n > 2:
                     r1, r2, r3_v = peaks_sqi(rpeaks, window, min_hr, max_hr)
                     if not r1:
-                        if type == 'ECG':
+                        if type in ['ECG','PPG']:
                             r4_cor = beats_cor_sqi(segment_clean, rpeaks, sf)
                         elif type in ['RPeaks','RR']:
                             r4_cor = np.nan
-                        ss_fix_peaks_st = now()
                         # 1st round of R-peaks correction: Kubios method
                         info, rpeaks_corrected = nk.signal_fixpeaks(rpeaks, sampling_rate=sf, method = 'Kubios', iterative=True, show=False)
                         sf_interp = 1000; 

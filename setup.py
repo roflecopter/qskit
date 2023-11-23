@@ -9,7 +9,9 @@ setup(
         'pandas',
         'neurokit2',
         'scipy',
-        'hrv-analysis'
+        'hrv-analysis',
+        'vital_sqi',
+        'mne'
     ],
     tests_require=[
         'pytest',
