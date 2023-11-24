@@ -160,7 +160,12 @@ def hrv_process(
                             if metrics is None:
                                 hrv_nk = {f'hr_{window}s': rpeaks_final_n*60/(window)}
                             else:
-                                hrv_nk = hrv_segment(rpeaks_final, sf, hf_ex = [9/60,1.5], window = window, metrics = metrics)
+                                try:
+                                    hrv_nk = hrv_segment(rpeaks_final, sf, hf_ex = [9/60,1.5], window = window, metrics = metrics)
+                                except Exception as error:
+                                    logger.warning(error)
+                                finally:
+                                    hrv_nk = None
                             if hrv_nk is not None:
                                 hrv_ext = {'ss':ss,'n':rpeaks_final_n,'artifacts_n':artifacts_n,
                                            'artifacts_rate':artifacts_n/rpeaks_final_n,'dt':se_dt,

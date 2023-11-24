@@ -29,7 +29,8 @@ sf = 256
 raw = mne.io.read_raw_edf(os.path.join('qskit','data','ppg','ZMAX_OXY_IR_AC.edf'))
 raw.pick(['OXY_IR_AC'])
 ppg_signal = raw.get_data().ravel()
-hrv = hrv_process(ppg_signal, cache_dir=cache_dir, sf = 256, type = 'PPG', window = 60, slide = 30, metrics = ['time'])
+metrics = ['time', 'freq', 'ans', 'r_rr', 'nl', 'pwr']
+hrv = hrv_process(ppg_signal, cache_dir=cache_dir, sf = sf, type = 'PPG', window = 60, slide = 20, metrics = metrics)
 hrv = hrv_quality(hrv, r3_th = 2.2, r4_cor_th = .86)
 hrv_good = hrv[hrv['q']]
 print(f'PPG good segments: {round(100*len(hrv_good)/len(hrv),1)}%')
