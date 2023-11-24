@@ -74,13 +74,16 @@ def hrv_process(
             try: hrv_neurokit = pd.read_csv(hrv_progress_cache_file)
             except: hrv_neurokit = None
         if hrv_neurokit is not None: 
-            signal_start = max(hrv_neurokit['ss'])
+            last_ss = max(hrv_neurokit['ss'])
+            if  last_ss is not None:
+                signal_start = int(last_ss)
+            else:
+                hrv_neurokit = None
         else: 
             hrv_neurokit = pd.DataFrame()
 
     slided = 0; slided_past = 0
     ss_started = now(); ss_first = now()
-
     if signal_start < signal_end:
         for i in range(signal_start, signal_end):
             ss = i; se = ss + window * sf - 1
