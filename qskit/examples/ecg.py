@@ -55,7 +55,8 @@ plt.plot(hrv_good['dt'],hrv_good['rmssd_60s'])
 # Movesense MD ECG CSV 512Hz
 ecg_data = pd.read_csv(os.path.join('qskit','data','ecg','MovesenseMD_EcgActivityGraphView.csv'))
 ecg_signal = ecg_data['Count']
-hrv = hrv_process(ecg_signal, sf = 512, window = 30, slide = 5, metrics = None)
+metrics = ['time', 'freq', 'ans', 'r_rr', 'nl', 'pwr']
+hrv = hrv_process(ecg_signal, sf = 512, window = 30, slide = 5, metrics = metrics, verbose=False)
 hrv = hrv_quality(hrv, r3_th = 2.2, r4_cor_th = .75)
 hrv_good = hrv[hrv['q']]
 print(f'ECG good segments: {round(100*len(hrv_good)/len(hrv),1)}%')

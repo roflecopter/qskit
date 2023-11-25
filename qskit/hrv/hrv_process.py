@@ -49,7 +49,8 @@ def hrv_process(
     elif type == 'RR':
         rpeaks_all = np.cumsum(np.append(0, signal))
         signal = np.arange(0, rpeaks_all[-1] + 1)
-    signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf);
+    segment_len = (window * sf - 1)
+    signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf) - segment_len;
 
     # define at each progress percentage to append results into cache file and print
     progress_percent_step = 5; progress_step = s_slide*round(signal_end/((100/progress_percent_step)*s_slide))
@@ -65,7 +66,7 @@ def hrv_process(
         signal_clean = butter_bandpass_filter(signal, .4, 4, sf, 4)
     elif type in ['RPeaks','RR']:
         signal_clean = signal
-    hrv_neurokit = None
+    hrv_neurokit = None; hrv_nk = None
     
     # load cache
     if cache_dir is not None: 
@@ -86,11 +87,10 @@ def hrv_process(
     ss_started = now(); ss_first = now()
     if signal_start < signal_end:
         for i in range(signal_start, signal_end):
-            ss = i; se = ss + window * sf - 1
+            ss = i; se = ss + segment_len
             if ((i % s_slide == 0) | debug) and (se < signal_end):    
                 slided = slided + 1
                 se_dt = dts + datetime.timedelta(seconds = se/sf)
-                if verbose: logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
                 if i % progress_step == 0:
                     ss_past = (now() - ss_started).total_seconds()
                     s_past = (slided - slided_past)*window/60
@@ -160,6 +160,7 @@ def hrv_process(
                             artifacts = np.unique(np.concatenate((ectopic, missed, longshort, extra, corrected))).astype(int)
                             artifacts_n = len(artifacts); rpeaks_final_n = rpeaks_final_n
                             r1, r2, r3_v = peaks_sqi(rpeaks_final, window, min_hr, max_hr)
+                            hrv_nk = None
                             if metrics is None:
                                 hrv_nk = {f'hr_{window}s': rpeaks_final_n*60/(window)}
                             else:
@@ -167,7 +168,6 @@ def hrv_process(
                                     hrv_nk = hrv_segment(rpeaks_final, sf, hf_ex = [9/60,1.5], window = window, metrics = metrics)
                                 except Exception as error:
                                     logger.warning(error)
-                                finally:
                                     hrv_nk = None
                             if hrv_nk is not None:
                                 hrv_ext = {'ss':ss,'n':rpeaks_final_n,'artifacts_n':artifacts_n,
@@ -177,6 +177,14 @@ def hrv_process(
                                            'r1':r1,'r2':r2,'r3_v':r3_v,'r4_cor':r4_cor}
                                 hrv_nk.update(hrv_ext)
                                 hrv_neurokit = pd.concat([hrv_neurokit,pd.DataFrame.from_dict([hrv_nk])])
+                if verbose: 
+                    if hrv_nk is not None:
+                        if f'rmssd_{window}s' in hrv_nk.keys():
+                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))}, rmssd: {round(np.nanmean(hrv_nk[f"rmssd_{window}s"]))} | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
+                        elif f'hr_{window}s' in hrv_nk.keys():
+                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))} | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
+                    else:
+                        logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')                        
             if debug:
                 logger.info(hrv_neurokit)
                 break
