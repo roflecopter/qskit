@@ -50,8 +50,7 @@ def hrv_process(
         rpeaks_all = np.cumsum(np.append(0, signal))
         signal = np.arange(0, rpeaks_all[-1] + 1)
     segment_len = (window * sf - 1)
-    signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf) - segment_len;
-
+    signal_start = 0; signal_end = int(sf) * math.floor(len(signal) / sf);
     # define at each progress percentage to append results into cache file and print
     progress_percent_step = 5; progress_step = s_slide*round(signal_end/((100/progress_percent_step)*s_slide))
     if progress_step == 0: progress_step = window * sf * 60
@@ -85,6 +84,8 @@ def hrv_process(
 
     slided = 0; slided_past = 0
     ss_started = now(); ss_first = now()
+    if verbose:
+        logger.info(f'Begin processing: {dts} / {dts + datetime.timedelta(seconds = signal_start/sf)} - {dts + datetime.timedelta(seconds = signal_end/sf)}')
     if signal_start < signal_end:
         for i in range(signal_start, signal_end):
             ss = i; se = ss + segment_len
@@ -94,7 +95,7 @@ def hrv_process(
                 if i % progress_step == 0:
                     ss_past = (now() - ss_started).total_seconds()
                     s_past = (slided - slided_past)*window/60
-                    logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% {round(s_past/ss_past,1)} s-m/s {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
+                    logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% {round(s_past/ss_past,1)} s-m/s {spd(ss_first, ss_started)} at {se_dt.strftime("%Y-%m-%d %H:%M:%S")}')
                     ss_started = now(); slided_past = slided
                 segment_clean = signal_clean[ss:se]
                 try:
@@ -180,11 +181,11 @@ def hrv_process(
                 if verbose: 
                     if hrv_nk is not None:
                         if f'rmssd_{window}s' in hrv_nk.keys():
-                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))}, rmssd: {round(np.nanmean(hrv_nk[f"rmssd_{window}s"]))} | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
+                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))}, rmssd: {round(np.nanmean(hrv_nk[f"rmssd_{window}s"]))} | {spd(ss_first, ss_started)} at {se_dt.strftime("%Y-%m-%d %H:%M:%S")}')
                         elif f'hr_{window}s' in hrv_nk.keys():
-                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))} | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')
+                            logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | hr: {round(np.nanmean(hrv_nk[f"hr_{window}s"]))} | {spd(ss_first, ss_started)} at {se_dt.strftime("%Y-%m-%d %H:%M:%S")}')
                     else:
-                        logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | {spd(ss_first, ss_started)} at {dts.strftime("%Y-%m-%d %H:%M")}')                        
+                        logger.info(f'{device} {hrv_cache_tag} {round((ss/sf)/60)}m {round(100*i/signal_end)}% | {spd(ss_first, ss_started)} at {se_dt.strftime("%Y-%m-%d %H:%M:%S")}') 
             if debug:
                 logger.info(hrv_neurokit)
                 break
